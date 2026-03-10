@@ -76,7 +76,7 @@ type ProblemProgress struct {
 	ID           uint      `json:"id" gorm:"primaryKey"`
 	UserID       uint      `json:"user_id" gorm:"index;not null"`
 	ProblemID    string    `json:"problem_id" gorm:"size:20;not null"` // 如 "1234A"
-	ProblemSetID string    `json:"problemset_id" gorm:"size:50;not null"`
+	ProblemSetID string    `json:"problemset_id" gorm:"column:problemset_id;size:50;not null"`
 	IsCompleted  bool      `json:"is_completed" gorm:"default:false"`
 	CompletedAt  time.Time `json:"completed_at"`
 	CreatedAt    time.Time `json:"created_at"`

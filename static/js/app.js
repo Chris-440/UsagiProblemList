@@ -99,6 +99,9 @@ function updateNavbar() {
             <button class="${bgBtnClass}" onclick="toggleBackground()" title="切换背景">
                 <i class="fas ${bgBtnIcon}"></i>
             </button>
+            <button class="nav-btn" onclick="navigateTo('/guide')" title="使用指南">
+                <i class="fas fa-book-open"></i>
+            </button>
             <button class="nav-btn" onclick="showStats()" title="个人主页">
                 <i class="fas fa-home"></i>
             </button>
@@ -110,6 +113,9 @@ function updateNavbar() {
         navMenu.innerHTML = `
             <button class="${bgBtnClass}" onclick="toggleBackground()" title="切换背景">
                 <i class="fas ${bgBtnIcon}"></i>
+            </button>
+            <button class="nav-btn" onclick="navigateTo('/guide')" title="使用指南">
+                <i class="fas fa-book-open"></i>
             </button>
             <button class="nav-btn" onclick="showLogin()" title="登录">
                 <i class="fas fa-sign-in-alt"></i>
@@ -184,6 +190,8 @@ async function handleRoute() {
 
     if (path === '/' || path === '') {
         renderProblemSetList();
+    } else if (path === '/guide') {
+        renderGuidePage();
     } else if (path.startsWith('/problemset/')) {
         const id = path.split('/')[2];
         renderProblemSetDetail(id);
@@ -531,10 +539,119 @@ function filterByCategory(category) {
     }
 }
 
+// 从标题中提取章节编号（如 "§3.1 二分+贪心" -> "3.1"）
+function extractSectionNumber(title) {
+    const match = title.match(/§(\d+(?:\.\d+)*)/);
+    return match ? match[1] : null;
+}
+
+// 计算章节层级深度（如 "3.1.1" -> 3）
+function getSectionDepth(number) {
+    if (!number) return 0;
+    return number.split('.').length;
+}
+
+// 生成章节锚点 ID
+function generateSectionId(sectionIndex, subsectionNumber) {
+    if (subsectionNumber) {
+        return `section-${subsectionNumber.replace(/\./g, '-')}`;
+    }
+    return `section-${sectionIndex}`;
+}
+
+// 生成目录结构
+function generateTOC(sections) {
+    const tocItems = [];
+    
+    sections.forEach((section, sectionIndex) => {
+        // 添加顶级章节
+        tocItems.push({
+            title: section.title,
+            id: generateSectionId(sectionIndex, null),
+            depth: 0,
+            isSection: true
+        });
+        
+        // 遍历子章节
+        section.content.forEach((item, itemIndex) => {
+            if (item.type !== 'paragraph' && item.title) {
+                const number = extractSectionNumber(item.title);
+                const depth = getSectionDepth(number);
+                tocItems.push({
+                    title: item.title,
+                    id: generateSectionId(sectionIndex, number),
+                    depth: depth,
+                    isSection: false
+                });
+            }
+        });
+    });
+    
+    return tocItems;
+}
+
+// 渲染目录
+function renderTOC(tocItems) {
+    if (tocItems.length === 0) return '';
+    
+    return `
+        <div class="toc-container">
+            <div class="toc-header">
+                <i class="fas fa-list"></i>
+                <span>目录</span>
+                <button class="toc-toggle" onclick="toggleTOC()">
+                    <i class="fas fa-chevron-up"></i>
+                </button>
+            </div>
+            <div class="toc-content" id="tocContent">
+                ${tocItems.map(item => `
+                    <a href="#${item.id}" 
+                       class="toc-item depth-${item.depth} ${item.isSection ? 'section-title' : ''}"
+                       onclick="scrollToSection('${item.id}', event)">
+                        ${item.title}
+                    </a>
+                `).join('')}
+            </div>
+        </div>
+    `;
+}
+
+// 切换目录展开/折叠
+function toggleTOC() {
+    const tocContent = document.getElementById('tocContent');
+    const toggleBtn = document.querySelector('.toc-toggle i');
+    if (tocContent) {
+        tocContent.classList.toggle('collapsed');
+        if (tocContent.classList.contains('collapsed')) {
+            toggleBtn.className = 'fas fa-chevron-down';
+        } else {
+            toggleBtn.className = 'fas fa-chevron-up';
+        }
+    }
+}
+
+// 滚动到指定章节
+function scrollToSection(id, event) {
+    event.preventDefault();
+    const element = document.getElementById(id);
+    if (element) {
+        const offset = 100; // 顶部偏移量，避免被导航栏遮挡
+        const elementPosition = element.getBoundingClientRect().top + window.pageYOffset;
+        window.scrollTo({
+            top: elementPosition - offset,
+            behavior: 'smooth'
+        });
+        
+        // 高亮当前章节
+        document.querySelectorAll('.toc-item').forEach(item => item.classList.remove('active'));
+        event.target.classList.add('active');
+    }
+}
+
 // 渲染题单详情页
 async function renderProblemSetDetail(id) {
     const content = document.getElementById('content');
-    
+
     // 显示加载状态
     content.innerHTML = `
         <div class="loading">
@@ -545,11 +662,14 @@ async function renderProblemSetDetail(id) {
 
     try {
         const problemSet = await fetchProblemSet(id);
-        
+
         // 获取进度
         const progress = await fetchProblemSetProgress(id);
         const completedIds = progress ? new Set(progress.completed_ids) : new Set();
         
+        // 生成目录
+        const tocItems = generateTOC(problemSet.sections);
+
         content.innerHTML = `
             <div class="problemset-detail">
                 <div class="detail-header">
@@ -572,9 +692,11 @@ async function renderProblemSetDetail(id) {
                         </div>
                     ` : ''}
                 </div>
-                
+
+                ${renderTOC(tocItems)}
+
                 <div class="sections">
-                    ${problemSet.sections.map(section => renderSection(section, id, completedIds)).join('')}
+                    ${problemSet.sections.map((section, sectionIndex) => renderSection(section, id, completedIds, sectionIndex)).join('')}
                 </div>
             </div>
         `;
@@ -591,26 +713,30 @@ async function renderProblemSetDetail(id) {
 }
 
 // 渲染章节
-function renderSection(section, problemSetId, completedIds) {
+function renderSection(section, problemSetId, completedIds, sectionIndex) {
+    const sectionId = generateSectionId(sectionIndex, null);
     return `
-        <div class="section">
+        <div class="section" id="${sectionId}">
             <h2 class="section-title">${section.title}</h2>
             <div class="section-content">
-                ${section.content.map(item => renderContentItem(item, problemSetId, completedIds)).join('')}
+                ${section.content.map((item, itemIndex) => renderContentItem(item, problemSetId, completedIds, sectionIndex)).join('')}
             </div>
         </div>
     `;
 }
 
 // 渲染内容项
-function renderContentItem(item, problemSetId, completedIds) {
+function renderContentItem(item, problemSetId, completedIds, sectionIndex) {
     if (item.type === 'paragraph') {
         return `<div class="paragraph">${item.text}</div>`;
     }
+
+    // 子章节对象 - 添加锚点 ID
+    const subsectionNumber = item.title ? extractSectionNumber(item.title) : null;
+    const subsectionId = subsectionNumber ? generateSectionId(sectionIndex, subsectionNumber) : '';
     
-    // 子章节对象
     return `
-        <div class="subsection">
+        <div class="subsection" ${subsectionId ? `id="${subsectionId}"` : ''}>
             ${item.title ? `<h3 class="subsection-title">${item.title}</h3>` : ''}
             ${item.idea ? `
                 <div class="subsection-idea">
@@ -644,65 +770,62 @@ function renderContentItem(item, problemSetId, completedIds) {
 // 渲染题目
 function renderProblem(problem, problemSetId, completedIds) {
     const isCompleted = completedIds.has(problem.id);
-    const maxVisibleTags = 3; // 默认显示的标签数量
     const tags = problem.tags || [];
-    const hasMoreTags = tags.length > maxVisibleTags;
-    const visibleTags = hasMoreTags ? tags.slice(0, maxVisibleTags) : tags;
-    const hiddenTags = hasMoreTags ? tags.slice(maxVisibleTags) : [];
+    const hasDetails = tags.length > 0 || problem.note;
     const problemKey = `problem-${problem.id}`;
 
     return `
         <div class="problem-item ${isCompleted ? 'completed' : ''}" data-problem-id="${problem.id}">
             <div class="problem-main">
                 <div class="problem-info">
-                    <label class="problem-checkbox">
+                    <label class="problem-checkbox" onclick="event.stopPropagation()">
                         <input type="checkbox"
                                ${isCompleted ? 'checked' : ''}
                                onchange="toggleProblemProgress('${problem.id}', '${problemSetId}', this.checked)">
                         <span class="checkmark"></span>
                     </label>
-                    <span class="problem-id">#${problem.id}</span>
-                    <span class="problem-name">${problem.name}</span>
+                    <a href="${problem.url}" target="_blank" class="problem-link-main" onclick="event.stopPropagation()">
+                        <span class="problem-id">#${problem.id}</span>
+                        <span class="problem-name">${problem.name}</span>
+                    </a>
                 </div>
                 <div class="problem-meta">
                     <span class="difficulty ${getDifficultyClass(problem.difficulty)}">${problem.difficulty}</span>
-                    <a href="${problem.url}" target="_blank" class="problem-link" title="前往 Codeforces" onclick="event.stopPropagation()">
-                        <i class="fas fa-external-link-alt"></i>
-                    </a>
+                    ${hasDetails ? `
+                        <button class="details-toggle" onclick="toggleProblemDetails('${problemKey}', event)">
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                    ` : ''}
                 </div>
             </div>
-            <div class="problem-tags-container">
-                <div class="problem-tags" id="tags-${problemKey}">
-                    ${visibleTags.map(tag => `<span class="tag">${tag}</span>`).join('')}
+            ${hasDetails ? `
+                <div class="problem-details" id="details-${problemKey}" style="display: none;">
+                    ${tags.length > 0 ? `
+                        <div class="problem-tags">
+                            ${tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
+                        </div>
+                    ` : ''}
+                    ${problem.note ? `<div class="problem-note">${problem.note}</div>` : ''}
                 </div>
-                ${hasMoreTags ? `
-                    <div class="tags-hidden" id="tags-hidden-${problemKey}" style="display: none;">
-                        ${hiddenTags.map(tag => `<span class="tag">${tag}</span>`).join('')}
-                    </div>
-                    <button class="tags-toggle" id="toggle-${problemKey}" onclick="toggleTags('${problemKey}', ${hiddenTags.length})">
-                        <i class="fas fa-ellipsis-h"></i>
-                        <span>展开 ${hiddenTags.length} 个标签</span>
-                    </button>
-                ` : ''}
-            </div>
-            ${problem.note ? `<div class="problem-note">${problem.note}</div>` : ''}
+            ` : ''}
         </div>
     `;
 }
 
-// 切换标签展开/折叠
-function toggleTags(problemKey, hiddenCount) {
-    const hiddenContainer = document.getElementById(`tags-hidden-${problemKey}`);
-    const toggleBtn = document.getElementById(`toggle-${problemKey}`);
-    const isExpanded = hiddenContainer.style.display !== 'none';
+// 切换题目详情展开/折叠
+function toggleProblemDetails(problemKey, event) {
+    event.stopPropagation();
+    const detailsContainer = document.getElementById(`details-${problemKey}`);
+    const toggleBtn = event.currentTarget;
+    const isExpanded = detailsContainer.style.display !== 'none';
 
     if (isExpanded) {
-        hiddenContainer.style.display = 'none';
-        toggleBtn.innerHTML = '<i class="fas fa-ellipsis-h"></i><span>展开 ' + hiddenCount + ' 个标签</span>';
+        detailsContainer.style.display = 'none';
+        toggleBtn.innerHTML = '<i class="fas fa-chevron-down"></i>';
         toggleBtn.classList.remove('expanded');
     } else {
-        hiddenContainer.style.display = 'flex';
-        toggleBtn.innerHTML = '<i class="fas fa-chevron-up"></i><span>收起标签</span>';
+        detailsContainer.style.display = 'block';
+        toggleBtn.innerHTML = '<i class="fas fa-chevron-up"></i>';
         toggleBtn.classList.add('expanded');
     }
 }
@@ -737,9 +860,259 @@ async function toggleProblemProgress(problemId, problemSetId, isCompleted) {
     }
 }
 
+// 渲染新手指引页面
+function renderGuidePage() {
+    const content = document.getElementById('content');
+
+    content.innerHTML = `
+        <div class="guide-container">
+            <!-- 页面头部 -->
+            <div class="guide-header">
+                <div class="guide-header-content">
+                    <div class="guide-logo">
+                        <i class="fas fa-mug-hot"></i>
+                    </div>
+                    <h1 class="guide-title">欢迎使用 Rabbit House</h1>
+                    <p class="guide-subtitle">Codeforces 算法题单训练平台 · 新手指南</p>
+                </div>
+            </div>
+
+            <!-- 快速开始卡片 -->
+            <div class="guide-section">
+                <div class="guide-card hero-card">
+                    <div class="hero-content">
+                        <div class="hero-text">
+                            <h2><i class="fas fa-rocket"></i> 30秒快速上手</h2>
+                            <p>跟随指引，快速开启你的刷题之旅</p>
+                        </div>
+                        <button class="hero-btn" onclick="navigateTo('/')">
+                            开始刷题 <i class="fas fa-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 功能介绍 -->
+            <div class="guide-section">
+                <h2 class="section-title">
+                    <i class="fas fa-star"></i>
+                    核心功能
+                </h2>
+                <div class="guide-grid">
+                    <div class="guide-card feature-card">
+                        <div class="feature-icon pink">
+                            <i class="fas fa-list-alt"></i>
+                        </div>
+                        <h3>精选题单</h3>
+                        <p>精选 Codeforces 算法题单，涵盖基础到进阶，系统化提升算法能力</p>
+                    </div>
+                    <div class="guide-card feature-card">
+                        <div class="feature-icon blue">
+                            <i class="fas fa-tasks"></i>
+                        </div>
+                        <h3>进度追踪</h3>
+                        <p>记录你的刷题进度，标记已完成题目，随时回顾学习状态</p>
+                    </div>
+                    <div class="guide-card feature-card">
+                        <div class="feature-icon purple">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <h3>数据统计</h3>
+                        <p>可视化刷题数据，热力图展示刷题频率，了解你的学习节奏</p>
+                    </div>
+                    <div class="guide-card feature-card">
+                        <div class="feature-icon green">
+                            <i class="fas fa-lightbulb"></i>
+                        </div>
+                        <h3>解题思路</h3>
+                        <p>每道题目附带解题思路和代码模板，助力理解算法精髓</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 使用步骤 -->
+            <div class="guide-section">
+                <h2 class="section-title">
+                    <i class="fas fa-route"></i>
+                    使用步骤
+                </h2>
+                <div class="steps-container">
+                    <div class="step-card">
+                        <div class="step-number">1</div>
+                        <div class="step-content">
+                            <h3>注册账号</h3>
+                            <p>点击右上角「注册」按钮，创建你的专属账号，保存刷题进度</p>
+                        </div>
+                        <div class="step-icon">
+                            <i class="fas fa-user-plus"></i>
+                        </div>
+                    </div>
+                    <div class="step-arrow">
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <div class="step-card">
+                        <div class="step-number">2</div>
+                        <div class="step-content">
+                            <h3>选择题单</h3>
+                            <p>浏览题单列表，根据分类选择适合你当前水平的题单开始练习</p>
+                        </div>
+                        <div class="step-icon">
+                            <i class="fas fa-book-open"></i>
+                        </div>
+                    </div>
+                    <div class="step-arrow">
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <div class="step-card">
+                        <div class="step-number">3</div>
+                        <div class="step-content">
+                            <h3>刷题练习</h3>
+                            <p>点击题目链接跳转 Codeforces 提交代码，完成后勾选标记进度</p>
+                        </div>
+                        <div class="step-icon">
+                            <i class="fas fa-code"></i>
+                        </div>
+                    </div>
+                    <div class="step-arrow">
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <div class="step-card">
+                        <div class="step-number">4</div>
+                        <div class="step-content">
+                            <h3>查看统计</h3>
+                            <p>登录后点击「个人主页」查看刷题统计、热力图和进度分析</p>
+                        </div>
+                        <div class="step-icon">
+                            <i class="fas fa-chart-bar"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 难度说明 -->
+            <div class="guide-section">
+                <h2 class="section-title">
+                    <i class="fas fa-layer-group"></i>
+                    难度分级
+                </h2>
+                <div class="difficulty-cards">
+                    <div class="difficulty-card easy">
+                        <div class="diff-header">
+                            <i class="fas fa-seedling"></i>
+                            <span class="diff-range">Rating &lt; 1300</span>
+                        </div>
+                        <h3>简单</h3>
+                        <p>适合入门选手，帮助建立编程思维和基础语法熟练度</p>
+                    </div>
+                    <div class="difficulty-card medium">
+                        <div class="diff-header">
+                            <i class="fas fa-fire"></i>
+                            <span class="diff-range">1300 ≤ Rating &lt; 1700</span>
+                        </div>
+                        <h3>中等</h3>
+                        <p>需要掌握一定算法思想，提升问题分析和解决能力</p>
+                    </div>
+                    <div class="difficulty-card hard">
+                        <div class="diff-header">
+                            <i class="fas fa-bolt"></i>
+                            <span class="diff-range">Rating ≥ 1700</span>
+                        </div>
+                        <h3>困难</h3>
+                        <p>挑战高难度问题，精进算法技巧，冲击更高 Rating</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 常见问题 -->
+            <div class="guide-section">
+                <h2 class="section-title">
+                    <i class="fas fa-question-circle"></i>
+                    常见问题
+                </h2>
+                <div class="faq-container">
+                    <div class="faq-item">
+                        <div class="faq-question" onclick="toggleFaq(this)">
+                            <i class="fas fa-plus-circle"></i>
+                            <span>题目链接无法打开怎么办？</span>
+                        </div>
+                        <div class="faq-answer">
+                            <p>题目链接指向 Codeforces 官网，请确保你能正常访问 Codeforces。如果网络不稳定，可以尝试使用代理或 VPN。</p>
+                        </div>
+                    </div>
+                    <div class="faq-item">
+                        <div class="faq-question" onclick="toggleFaq(this)">
+                            <i class="fas fa-plus-circle"></i>
+                            <span>进度数据会丢失吗？</span>
+                        </div>
+                        <div class="faq-answer">
+                            <p>进度数据与你的账号绑定，存储在服务器数据库中。只要使用同一账号登录，进度就不会丢失。</p>
+                        </div>
+                    </div>
+                    <div class="faq-item">
+                        <div class="faq-question" onclick="toggleFaq(this)">
+                            <i class="fas fa-plus-circle"></i>
+                            <span>可以在手机上使用吗？</span>
+                        </div>
+                        <div class="faq-answer">
+                            <p>网站采用响应式设计，支持手机、平板等移动设备访问，随时随地刷题学习。</p>
+                        </div>
+                    </div>
+                    <div class="faq-item">
+                        <div class="faq-question" onclick="toggleFaq(this)">
+                            <i class="fas fa-plus-circle"></i>
+                            <span>如何提高刷题效率？</span>
+                        </div>
+                        <div class="faq-answer">
+                            <p>建议按照题单顺序系统学习，每道题先独立思考，遇到困难再参考解题思路。坚持每日刷题，保持手感！</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 底部行动按钮 -->
+            <div class="guide-footer">
+                <div class="footer-decor">
+                    <i class="fas fa-heart"></i>
+                    <i class="fas fa-coffee"></i>
+                    <i class="fas fa-heart"></i>
+                </div>
+                <p class="footer-text">准备好了吗？开始你的算法之旅吧！</p>
+                <button class="guide-start-btn" onclick="navigateTo('/')">
+                    <i class="fas fa-play"></i>
+                    立即开始
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+// 切换FAQ展开/收起
+function toggleFaq(element) {
+    const faqItem = element.parentElement;
+    const isExpanded = faqItem.classList.contains('expanded');
+    
+    // 关闭其他展开的FAQ
+    document.querySelectorAll('.faq-item.expanded').forEach(item => {
+        if (item !== faqItem) {
+            item.classList.remove('expanded');
+            item.querySelector('.faq-question i').className = 'fas fa-plus-circle';
+        }
+    });
+    
+    // 切换当前FAQ
+    faqItem.classList.toggle('expanded');
+    const icon = element.querySelector('i');
+    icon.className = isExpanded ? 'fas fa-plus-circle' : 'fas fa-minus-circle';
+}
+
 // 渲染统计页面 - 力扣风格个人主页
 async function renderStatsPage() {
     const content = document.getElementById('content');
+
+    // 先尝试恢复登录状态（解决刷新页面时 currentUser 未恢复的问题）
+    if (!currentUser && authToken) {
+        await checkAuth(true);
+    }
 
     if (!currentUser) {
         content.innerHTML = `

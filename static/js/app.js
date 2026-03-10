@@ -99,6 +99,9 @@ function updateNavbar() {
             <button class="${bgBtnClass}" onclick="toggleBackground()" title="切换背景">
                 <i class="fas ${bgBtnIcon}"></i>
             </button>
+            <button class="nav-btn" onclick="navigateTo('/search')" title="搜索用户">
+                <i class="fas fa-search"></i>
+            </button>
             <button class="nav-btn" onclick="navigateTo('/guide')" title="使用指南">
                 <i class="fas fa-book-open"></i>
             </button>
@@ -113,6 +116,9 @@ function updateNavbar() {
         navMenu.innerHTML = `
             <button class="${bgBtnClass}" onclick="toggleBackground()" title="切换背景">
                 <i class="fas ${bgBtnIcon}"></i>
+            </button>
+            <button class="nav-btn" onclick="navigateTo('/search')" title="搜索用户">
+                <i class="fas fa-search"></i>
             </button>
             <button class="nav-btn" onclick="navigateTo('/guide')" title="使用指南">
                 <i class="fas fa-book-open"></i>
@@ -192,6 +198,18 @@ async function handleRoute() {
         renderProblemSetList();
     } else if (path === '/guide') {
         renderGuidePage();
+    } else if (path === '/search') {
+        renderUserSearchPage();
+    } else if (path.startsWith('/user/')) {
+        const parts = path.split('/');
+        const userId = parts[2];
+        if (parts[3] === 'followers') {
+            renderFollowListPage(userId, 'followers');
+        } else if (parts[3] === 'followings') {
+            renderFollowListPage(userId, 'followings');
+        } else {
+            renderUserProfilePage(userId);
+        }
     } else if (path.startsWith('/problemset/')) {
         const id = path.split('/')[2];
         renderProblemSetDetail(id);
@@ -1567,6 +1585,397 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// ==================== 用户交互功能 ====================
+
+// 搜索用户
+async function searchUsers(keyword) {
+    const result = await apiRequest(`/users/search?keyword=${encodeURIComponent(keyword)}`);
+    if (result.code === 0) {
+        return result.data;
+    }
+    return null;
+}
+
+// 获取用户资料
+async function getUserProfile(userId) {
+    const result = await apiRequest(`/users/${userId}`);
+    if (result.code === 0) {
+        return result.data;
+    }
+    return null;
+}
+
+// 关注用户
+async function followUser(userId) {
+    if (!currentUser) {
+        alert('请先登录');
+        showLogin();
+        return false;
+    }
+
+    const result = await apiRequest(`/users/${userId}/follow`, {
+        method: 'POST'
+    });
+
+    if (result.code === 0) {
+        return true;
+    }
+    alert(result.message);
+    return false;
+}
+
+// 取消关注
+async function unfollowUser(userId) {
+    if (!currentUser) {
+        alert('请先登录');
+        showLogin();
+        return false;
+    }
+
+    const result = await apiRequest(`/users/${userId}/follow`, {
+        method: 'DELETE'
+    });
+
+    if (result.code === 0) {
+        return true;
+    }
+    alert(result.message);
+    return false;
+}
+
+// 获取粉丝列表
+async function getFollowers(userId) {
+    const result = await apiRequest(`/users/${userId}/followers`);
+    if (result.code === 0) {
+        return result.data;
+    }
+    return null;
+}
+
+// 获取关注列表
+async function getFollowings(userId) {
+    const result = await apiRequest(`/users/${userId}/followings`);
+    if (result.code === 0) {
+        return result.data;
+    }
+    return null;
+}
+
+// 渲染用户搜索页面
+async function renderUserSearchPage() {
+    const content = document.getElementById('content');
+
+    content.innerHTML = `
+        <div class="search-page">
+            <div class="page-header">
+                <h1 class="page-title"><i class="fas fa-search"></i> 搜索用户</h1>
+                <p class="page-subtitle">找到志同道合的刷题伙伴</p>
+            </div>
+
+            <div class="search-box">
+                <input type="text" id="searchKeyword" placeholder="输入用户名或昵称搜索..."
+                       onkeypress="if(event.key==='Enter') performUserSearch()">
+                <button class="btn-primary" onclick="performUserSearch()">
+                    <i class="fas fa-search"></i> 搜索
+                </button>
+            </div>
+
+            <div id="searchResults" class="search-results"></div>
+        </div>
+    `;
+}
+
+// 执行用户搜索
+async function performUserSearch() {
+    const keyword = document.getElementById('searchKeyword').value.trim();
+    const resultsContainer = document.getElementById('searchResults');
+
+    if (!keyword) {
+        resultsContainer.innerHTML = '<p class="search-hint">请输入搜索关键词</p>';
+        return;
+    }
+
+    resultsContainer.innerHTML = '<div class="loading"><div class="spinner"></div><p>搜索中...</p></div>';
+
+    const result = await searchUsers(keyword);
+
+    if (!result || result.users.length === 0) {
+        resultsContainer.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-user-slash"></i>
+                <p>未找到匹配的用户</p>
+            </div>
+        `;
+        return;
+    }
+
+    resultsContainer.innerHTML = `
+        <div class="search-result-info">找到 ${result.total} 个用户</div>
+        <div class="user-grid">
+            ${result.users.map(user => renderUserCard(user)).join('')}
+        </div>
+    `;
+}
+
+// 渲染用户卡片
+function renderUserCard(user) {
+    const isSelf = currentUser && currentUser.id === user.id;
+
+    return `
+        <div class="user-card" onclick="navigateTo('/user/${user.id}')">
+            <div class="user-card-avatar">
+                ${(user.nickname || user.username).charAt(0).toUpperCase()}
+            </div>
+            <div class="user-card-info">
+                <div class="user-card-name">${user.nickname || user.username}</div>
+                <div class="user-card-username">@${user.username}</div>
+                <div class="user-card-stats">
+                    <span><i class="fas fa-code"></i> ${user.total_completed || 0} 题</span>
+                </div>
+            </div>
+            <div class="user-card-actions" onclick="event.stopPropagation()">
+                ${!isSelf ? `
+                    <button class="btn-follow ${user.is_following ? 'following' : ''}"
+                            onclick="toggleFollow(${user.id}, ${user.is_following}, this)">
+                        ${user.is_following ? '已关注' : '关注'}
+                    </button>
+                ` : ''}
+            </div>
+        </div>
+    `;
+}
+
+// 切换关注状态
+async function toggleFollow(userId, isFollowing, btn) {
+    let success;
+    if (isFollowing) {
+        success = await unfollowUser(userId);
+    } else {
+        success = await followUser(userId);
+    }
+
+    if (success) {
+        btn.classList.toggle('following');
+        btn.textContent = isFollowing ? '关注' : '已关注';
+        btn.onclick = (e) => {
+            e.stopPropagation();
+            toggleFollow(userId, !isFollowing, btn);
+        };
+    }
+}
+
+// 渲染用户主页
+async function renderUserProfilePage(userId) {
+    const content = document.getElementById('content');
+
+    content.innerHTML = '<div class="loading"><div class="spinner"></div><p>加载中...</p></div>';
+
+    const profile = await getUserProfile(userId);
+
+    if (!profile) {
+        content.innerHTML = `
+            <div class="error">
+                <p>用户不存在</p>
+                <button onclick="navigateTo('/')" class="btn-primary" style="margin-top: 1rem;">
+                    返回首页
+                </button>
+            </div>
+        `;
+        return;
+    }
+
+    const isSelf = currentUser && currentUser.id === profile.id;
+
+    content.innerHTML = `
+        <div class="profile-container">
+            <!-- 左侧用户信息卡片 -->
+            <div class="profile-sidebar">
+                <div class="profile-card">
+                    <div class="profile-avatar">
+                        ${(profile.nickname || profile.username).charAt(0).toUpperCase()}
+                    </div>
+                    <div class="profile-name">${profile.nickname || profile.username}</div>
+                    <div class="profile-username">@${profile.username}</div>
+
+                    <div class="profile-stats-mini">
+                        <div class="profile-stat-item clickable" onclick="navigateTo('/user/${profile.id}/followings')">
+                            <div class="profile-stat-value">${profile.followings_count || 0}</div>
+                            <div class="profile-stat-label">关注</div>
+                        </div>
+                        <div class="profile-stat-item clickable" onclick="navigateTo('/user/${profile.id}/followers')">
+                            <div class="profile-stat-value">${profile.followers_count || 0}</div>
+                            <div class="profile-stat-label">粉丝</div>
+                        </div>
+                    </div>
+
+                    <div class="profile-stats-mini">
+                        <div class="profile-stat-item">
+                            <div class="profile-stat-value">${profile.total_completed || 0}</div>
+                            <div class="profile-stat-label">已完成</div>
+                        </div>
+                        <div class="profile-stat-item">
+                            <div class="profile-stat-value">${profile.current_streak || 0}</div>
+                            <div class="profile-stat-label">连续天数</div>
+                        </div>
+                        <div class="profile-stat-item">
+                            <div class="profile-stat-value">${profile.max_streak || 0}</div>
+                            <div class="profile-stat-label">最长连续</div>
+                        </div>
+                    </div>
+
+                    <div class="profile-days">
+                        <div class="profile-days-value">${profile.created_at ? calculateDaysSince(profile.created_at) : '-'}</div>
+                        <div class="profile-days-label">天加入社区</div>
+                    </div>
+
+                    ${!isSelf ? `
+                        <div class="profile-actions">
+                            <button class="btn-follow-large ${profile.is_following ? 'following' : ''}"
+                                    onclick="toggleProfileFollow(${profile.id}, ${profile.is_following})">
+                                <i class="fas ${profile.is_following ? 'fa-check' : 'fa-plus'}"></i>
+                                ${profile.is_following ? '已关注' : '关注'}
+                            </button>
+                        </div>
+                    ` : ''}
+                </div>
+
+                <button class="btn-secondary" onclick="navigateTo('/')" style="width: 100%;">
+                    <i class="fas fa-arrow-left"></i> 返回题单列表
+                </button>
+            </div>
+
+            <!-- 右侧主内容 -->
+            <div class="profile-main">
+                <div class="stats-box">
+                    <div class="stats-box-title">
+                        <i class="fas fa-chart-bar"></i>
+                        刷题统计
+                    </div>
+                    <div class="profile-stats-grid">
+                        <div class="profile-stat-card">
+                            <div class="stat-icon"><i class="fas fa-code"></i></div>
+                            <div class="stat-info">
+                                <div class="stat-value">${profile.total_completed || 0}</div>
+                                <div class="stat-label">已完成题目</div>
+                            </div>
+                        </div>
+                        <div class="profile-stat-card">
+                            <div class="stat-icon"><i class="fas fa-fire"></i></div>
+                            <div class="stat-info">
+                                <div class="stat-value">${profile.current_streak || 0}</div>
+                                <div class="stat-label">当前连续</div>
+                            </div>
+                        </div>
+                        <div class="profile-stat-card">
+                            <div class="stat-icon"><i class="fas fa-trophy"></i></div>
+                            <div class="stat-info">
+                                <div class="stat-value">${profile.max_streak || 0}</div>
+                                <div class="stat-label">最长连续</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                ${isSelf ? `
+                    <div class="stats-box">
+                        <div class="stats-box-title">
+                            <i class="fas fa-users"></i>
+                            关注动态
+                        </div>
+                        <div class="follow-stats">
+                            <div class="follow-stat-item" onclick="navigateTo('/user/${profile.id}/followings')">
+                                <span class="follow-stat-count">${profile.followings_count || 0}</span>
+                                <span class="follow-stat-label">关注</span>
+                            </div>
+                            <div class="follow-stat-item" onclick="navigateTo('/user/${profile.id}/followers')">
+                                <span class="follow-stat-count">${profile.followers_count || 0}</span>
+                                <span class="follow-stat-label">粉丝</span>
+                            </div>
+                        </div>
+                    </div>
+                ` : ''}
+            </div>
+        </div>
+    `;
+}
+
+// 切换主页关注状态
+async function toggleProfileFollow(userId, isFollowing) {
+    let success;
+    if (isFollowing) {
+        success = await unfollowUser(userId);
+    } else {
+        success = await followUser(userId);
+    }
+
+    if (success) {
+        // 重新渲染页面
+        renderUserProfilePage(userId);
+    }
+}
+
+// 计算加入天数
+function calculateDaysSince(dateStr) {
+    const date = new Date(dateStr);
+    const now = new Date();
+    return Math.floor((now - date) / (1000 * 60 * 60 * 24)) + 1;
+}
+
+// 渲染关注/粉丝列表页面
+async function renderFollowListPage(userId, type) {
+    const content = document.getElementById('content');
+
+    content.innerHTML = '<div class="loading"><div class="spinner"></div><p>加载中...</p></div>';
+
+    // 获取用户资料用于显示标题
+    const profile = await getUserProfile(userId);
+
+    // 获取列表数据
+    let result;
+    if (type === 'followers') {
+        result = await getFollowers(userId);
+    } else {
+        result = await getFollowings(userId);
+    }
+
+    if (!result) {
+        content.innerHTML = `
+            <div class="error">
+                <p>加载失败</p>
+                <button onclick="navigateTo('/user/${userId}')" class="btn-primary" style="margin-top: 1rem;">
+                    返回用户主页
+                </button>
+            </div>
+        `;
+        return;
+    }
+
+    const title = type === 'followers' ? '粉丝列表' : '关注列表';
+    const count = type === 'followers' ? (profile?.followers_count || 0) : (profile?.followings_count || 0);
+
+    content.innerHTML = `
+        <div class="follow-list-page">
+            <div class="page-header">
+                <div class="back-button" onclick="navigateTo('/user/${userId}')">
+                    <i class="fas fa-arrow-left"></i>
+                    返回主页
+                </div>
+                <h1 class="page-title">${title}</h1>
+                <p class="page-subtitle">共 ${count} 人</p>
+            </div>
+
+            <div class="user-grid">
+                ${result.users.length > 0 ? result.users.map(user => renderUserCard(user)).join('') : `
+                    <div class="empty-state" style="grid-column: 1/-1;">
+                        <i class="fas fa-users"></i>
+                        <p>${type === 'followers' ? '暂无粉丝' : '暂无关注'}</p>
+                    </div>
+                `}
+            </div>
+        </div>
+    `;
 }
 
 // 处理浏览器前进/后退

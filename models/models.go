@@ -193,3 +193,52 @@ type ActivityItem struct {
 	Difficulty  int       `json:"difficulty"`
 	CompletedAt time.Time `json:"completed_at"`
 }
+
+// ==================== 用户交互模型 ====================
+
+// Follow 关注关系模型
+type Follow struct {
+	ID          uint      `json:"id" gorm:"primaryKey"`
+	FollowerID  uint      `json:"follower_id" gorm:"index;not null"`  // 关注者ID
+	FollowingID uint      `json:"following_id" gorm:"index;not null"` // 被关注者ID
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+// TableName 指定表名
+func (Follow) TableName() string {
+	return "follows"
+}
+
+// UserProfile 用户公开资料（用于其他用户查看）
+type UserProfile struct {
+	ID               uint   `json:"id"`
+	Username         string `json:"username"`
+	Nickname         string `json:"nickname"`
+	Avatar           string `json:"avatar"`
+	CreatedAt        string `json:"created_at"`
+	IsFollowing      bool   `json:"is_following"`       // 当前用户是否关注了该用户
+	IsFollower       bool   `json:"is_follower"`        // 该用户是否关注了当前用户
+	FollowersCount   int    `json:"followers_count"`    // 粉丝数
+	FollowingsCount  int    `json:"followings_count"`   // 关注数
+	TotalCompleted   int    `json:"total_completed"`    // 完成题目数
+	CurrentStreak    int    `json:"current_streak"`     // 当前连续天数
+	MaxStreak        int    `json:"max_streak"`         // 最大连续天数
+}
+
+// UserSearchResult 用户搜索结果
+type UserSearchResult struct {
+	ID              uint   `json:"id"`
+	Username        string `json:"username"`
+	Nickname        string `json:"nickname"`
+	Avatar          string `json:"avatar"`
+	TotalCompleted  int    `json:"total_completed"`
+	IsFollowing     bool   `json:"is_following"`
+}
+
+// FollowListResponse 关注/粉丝列表响应
+type FollowListResponse struct {
+	Users      []UserProfile `json:"users"`
+	Total      int           `json:"total"`
+	Page       int           `json:"page"`
+	PageSize   int           `json:"page_size"`
+}

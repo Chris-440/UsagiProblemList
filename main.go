@@ -39,6 +39,12 @@ func main() {
 		apiGroup.POST("/register", handler.Register)
 		apiGroup.POST("/login", handler.Login)
 
+		// 公开接口 - 用户搜索和查看资料（可选认证）
+		apiGroup.GET("/users/search", handler.SearchUsers)
+		apiGroup.GET("/users/:id", handler.GetUserProfile)
+		apiGroup.GET("/users/:id/followers", handler.GetFollowers)
+		apiGroup.GET("/users/:id/followings", handler.GetFollowings)
+
 		// 需要认证的接口
 		authGroup := apiGroup.Group("")
 		authGroup.Use(handler.AuthMiddleware())
@@ -55,6 +61,10 @@ func main() {
 			authGroup.GET("/progress/category", handler.GetCategoryProgress)
 			authGroup.GET("/progress/heatmap", handler.GetHeatmapData)
 			authGroup.GET("/progress/detail", handler.GetDetailedStats)
+
+			// 用户交互
+			authGroup.POST("/users/:id/follow", handler.FollowUser)
+			authGroup.DELETE("/users/:id/follow", handler.UnfollowUser)
 		}
 	}
 

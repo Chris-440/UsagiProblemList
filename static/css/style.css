@@ -3109,3 +3109,339 @@ body.bg-enabled {
         padding-left: 2.6rem;
     }
 }
+
+
+/* ==================== 用户搜索页面样式 ==================== */
+
+.search-page {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.search-box {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.search-box input {
+    flex: 1;
+    padding: 1rem 1.5rem;
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    font-size: 1rem;
+    background: var(--card-bg);
+    color: var(--text-primary);
+    transition: all 0.3s ease;
+}
+
+.search-box input:focus {
+    outline: none;
+    border-color: var(--primary-pink);
+    box-shadow: 0 0 0 3px rgba(255, 182, 193, 0.2);
+}
+
+.search-box .btn-primary {
+    padding: 1rem 2rem;
+    white-space: nowrap;
+}
+
+.search-results {
+    margin-top: 2rem;
+}
+
+.search-hint {
+    text-align: center;
+    color: var(--text-secondary);
+    padding: 2rem;
+}
+
+.search-result-info {
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+}
+
+/* 用户卡片网格 */
+.user-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1rem;
+}
+
+/* 用户卡片 */
+.user-card {
+    background: var(--card-bg);
+    border-radius: 16px;
+    padding: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.user-card:hover {
+    border-color: var(--primary-pink);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(255, 182, 193, 0.2);
+}
+
+.user-card-avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary-pink), var(--primary-blue));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.5rem;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.user-card-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.user-card-name {
+    font-weight: 600;
+    font-size: 1.1rem;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.user-card-username {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    margin-top: 0.2rem;
+}
+
+.user-card-stats {
+    margin-top: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.user-card-stats i {
+    color: var(--primary-pink);
+    margin-right: 0.3rem;
+}
+
+.user-card-actions {
+    flex-shrink: 0;
+}
+
+/* 关注按钮 */
+.btn-follow {
+    padding: 0.5rem 1.2rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 2px solid var(--primary-pink);
+    background: transparent;
+    color: var(--primary-pink);
+}
+
+.btn-follow:hover {
+    background: var(--primary-pink);
+    color: white;
+}
+
+.btn-follow.following {
+    background: var(--primary-pink);
+    color: white;
+}
+
+.btn-follow.following:hover {
+    background: #e88a97;
+    border-color: #e88a97;
+}
+
+/* 大号关注按钮 */
+.btn-follow-large {
+    width: 100%;
+    padding: 0.8rem 1.5rem;
+    border-radius: 25px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 2px solid var(--primary-pink);
+    background: var(--primary-pink);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+.btn-follow-large:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(255, 182, 193, 0.4);
+}
+
+.btn-follow-large.following {
+    background: white;
+    color: var(--primary-pink);
+}
+
+.btn-follow-large.following:hover {
+    background: #fff5f5;
+}
+
+/* 用户主页样式 */
+.profile-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.profile-stat-card {
+    background: linear-gradient(135deg, rgba(255, 182, 193, 0.1), rgba(100, 181, 246, 0.1));
+    border-radius: 12px;
+    padding: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.profile-stat-card .stat-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: var(--primary-pink);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.2rem;
+}
+
+.profile-stat-card .stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.profile-stat-card .stat-label {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+/* 关注统计区域 */
+.follow-stats {
+    display: flex;
+    gap: 2rem;
+    padding: 1.5rem;
+    background: linear-gradient(135deg, rgba(255, 182, 193, 0.1), rgba(100, 181, 246, 0.1));
+    border-radius: 12px;
+    margin-top: 1rem;
+}
+
+.follow-stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    transition: transform 0.3s ease;
+}
+
+.follow-stat-item:hover {
+    transform: scale(1.05);
+}
+
+.follow-stat-count {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.follow-stat-label {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+/* 可点击的统计项 */
+.profile-stat-item.clickable {
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.profile-stat-item.clickable:hover {
+    transform: scale(1.05);
+}
+
+/* 关注/粉丝列表页面 */
+.follow-list-page {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+/* 个人主页操作按钮 */
+.profile-actions {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border-color);
+}
+
+/* 空状态 */
+.empty-state {
+    text-align: center;
+    padding: 3rem;
+    color: var(--text-secondary);
+}
+
+.empty-state i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    color: var(--border-color);
+}
+
+.empty-state p {
+    font-size: 1rem;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+    .search-box {
+        flex-direction: column;
+    }
+
+    .user-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .profile-stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .follow-stats {
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    .user-card {
+        padding: 1rem;
+    }
+
+    .user-card-avatar {
+        width: 50px;
+        height: 50px;
+        font-size: 1.2rem;
+    }
+}
+

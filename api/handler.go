@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -15,6 +16,7 @@ type Handler struct {
 	psService       *service.ProblemSetService
 	authService     *service.AuthService
 	progressService *service.ProgressService
+	followService   *service.FollowService
 }
 
 // NewHandler 创建新的Handler
@@ -23,6 +25,7 @@ func NewHandler() *Handler {
 		psService:       service.NewProblemSetService(),
 		authService:     service.NewAuthService(),
 		progressService: service.NewProgressService(),
+		followService:   service.NewFollowService(),
 	}
 }
 
@@ -337,4 +340,156 @@ func (h *Handler) AuthMiddleware() gin.HandlerFunc {
 		c.Set("username", claims.Username)
 		c.Next()
 	}
+}
+
+// ==================== 用户交互接口 ====================
+
+// SearchUsers 搜索用户
+func (h *Handler) SearchUsers(c *gin.Context) {
+	keyword := c.Query("keyword")
+	page := 1
+	pageSize := 20
+
+	// 尝试获取当前用户ID（可选）
+	var viewerID uint
+	if userID, exists := c.Get("userID"); exists {
+		viewerID = userID.(uint)
+	}
+
+	result, err := h.followService.SearchUsers(viewerID, keyword, page, pageSize)
+	if err != nil {
+		errorResponse(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	successResponse(c, result)
+}
+
+// GetUserProfile 获取用户公开资料
+func (h *Handler) GetUserProfile(c *gin.Context) {
+	targetUserIDStr := c.Param("id")
+	if targetUserIDStr == "" {
+		errorResponse(c, http.StatusBadRequest, "缺少用户ID")
+		return
+	}
+
+	var targetUserID uint
+	if _, err := fmt.Sscanf(targetUserIDStr, "%d", &targetUserID); err != nil {
+		errorResponse(c, http.StatusBadRequest, "无效的用户ID")
+		return
+	}
+
+	// 尝试获取当前用户ID（可选）
+	var viewerID uint
+	if userID, exists := c.Get("userID"); exists {
+		viewerID = userID.(uint)
+	}
+
+	profile, err := h.followService.GetUserProfile(viewerID, targetUserID)
+	if err != nil {
+		errorResponse(c, http.StatusNotFound, err.Error())
+		return
+	}
+
+	successResponse(c, profile)
+}
+
+// FollowUser 关注用户
+func (h *Handler) FollowUser(c *gin.Context) {
+	userID, exists := c.Get("userID")
+	if !exists {
+		errorResponse(c, http.StatusUnauthorized, "未登录")
+		return
+	}
+
+	targetUserIDStr := c.Param("id")
+	var targetUserID uint
+	if _, err := fmt.Sscanf(targetUserIDStr, "%d", &targetUserID); err != nil {
+		errorResponse(c, http.StatusBadRequest, "无效的用户ID")
+		return
+	}
+
+	if err := h.followService.FollowUser(userID.(uint), targetUserID); err != nil {
+		errorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	successResponse(c, gin.H{"message": "关注成功"})
+}
+
+// UnfollowUser 取消关注
+func (h *Handler) UnfollowUser(c *gin.Context) {
+	userID, exists := c.Get("userID")
+	if !exists {
+		errorResponse(c, http.StatusUnauthorized, "未登录")
+		return
+	}
+
+	targetUserIDStr := c.Param("id")
+	var targetUserID uint
+	if _, err := fmt.Sscanf(targetUserIDStr, "%d", &targetUserID); err != nil {
+		errorResponse(c, http.StatusBadRequest, "无效的用户ID")
+		return
+	}
+
+	if err := h.followService.UnfollowUser(userID.(uint), targetUserID); err != nil {
+		errorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	successResponse(c, gin.H{"message": "取消关注成功"})
+}
+
+// GetFollowers 获取粉丝列表
+func (h *Handler) GetFollowers(c *gin.Context) {
+	targetUserIDStr := c.Param("id")
+	var targetUserID uint
+	if _, err := fmt.Sscanf(targetUserIDStr, "%d", &targetUserID); err != nil {
+		errorResponse(c, http.StatusBadRequest, "无效的用户ID")
+		return
+	}
+
+	// 尝试获取当前用户ID（可选）
+	var viewerID uint
+	if userID, exists := c.Get("userID"); exists {
+		viewerID = userID.(uint)
+	}
+
+	page := 1
+	pageSize := 20
+
+	result, err := h.followService.GetFollowers(viewerID, targetUserID, page, pageSize)
+	if err != nil {
+		errorResponse(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	successResponse(c, result)
+}
+
+// GetFollowings 获取关注列表
+func (h *Handler) GetFollowings(c *gin.Context) {
+	targetUserIDStr := c.Param("id")
+	var targetUserID uint
+	if _, err := fmt.Sscanf(targetUserIDStr, "%d", &targetUserID); err != nil {
+		errorResponse(c, http.StatusBadRequest, "无效的用户ID")
+		return
+	}
+
+	// 尝试获取当前用户ID（可选）
+	var viewerID uint
+	if userID, exists := c.Get("userID"); exists {
+		viewerID = userID.(uint)
+	}
+
+	page := 1
+	pageSize := 20
+
+	result, err := h.followService.GetFollowings(viewerID, targetUserID, page, pageSize)
+	if err != nil {
+		errorResponse(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	successResponse(c, result)
 }

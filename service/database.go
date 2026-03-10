@@ -26,7 +26,7 @@ func InitDB() error {
 	}
 
 	// 自动迁移数据库表结构
-	err = DB.AutoMigrate(&models.User{}, &models.ProblemProgress{})
+	err = DB.AutoMigrate(&models.User{}, &models.ProblemProgress{}, &models.Follow{})
 	if err != nil {
 		return fmt.Errorf("failed to migrate database: %w", err)
 	}

@@ -5,47 +5,48 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository }}
+
 jobs:
-  build-and-deploy:
+  build-and-push:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
     
-    - name: Setup Go
-      uses: actions/setup-go@v5
-      with:
-        go-version: '1.21'
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
     
-    - name: Build
-      run: |
-        go mod download
-        go build -o UsagiProblemList .
+    - name: Login to GitHub Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Build and push
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: true
+        tags: ${{ env.IMAGE_NAME }}:latest,${{ env.IMAGE_NAME }}:${{ github.sha }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
     
     - name: Deploy to Server
-      uses: appleboy/scp-action@v0.1.4
-      with:
-        host: ${{ secrets.SERVER_HOST }}
-        username: ${{ secrets.SERVER_USER }}
-        key: ${{ secrets.SSH_PRIVATE_KEY }}
-        source: "UsagiProblemList"
-        target: "/root/cfProblemList"
-        strip_components: 0
-    
-    - name: Restart Service
       uses: appleboy/ssh-action@v1.0.3
       with:
         host: ${{ secrets.SERVER_HOST }}
         username: ${{ secrets.SERVER_USER }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         script: |
-          cd /root/cfProblemList
-          chmod +x UsagiProblemList
-          if [ -f ./manage.sh ]; then
-            ./manage.sh restart
-          else
-            pkill -f UsagiProblemList || true
-            nohup ./UsagiProblemList > /dev/null 2>&1 &
-          fi
-          echo 'Deployment completed!'
+          cd /root/usagi
+          docker compose pull
+          docker compose up -d
+          docker image prune -f
+          echo "✅ Deployment completed!"

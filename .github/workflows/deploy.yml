@@ -24,13 +24,14 @@ jobs:
         go build -o UsagiProblemList .
     
     - name: Deploy to Server
-      uses: easingthemes/ssh-deploy@main
+      uses: appleboy/scp-action@v0.1.4
       with:
-        SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-        REMOTE_HOST: ${{ secrets.SERVER_HOST }}
-        REMOTE_USER: ${{ secrets.SERVER_USER }}
-        SOURCE: UsagiProblemList
-        TARGET: /root/cfProblemList
+        host: ${{ secrets.SERVER_HOST }}
+        username: ${{ secrets.SERVER_USER }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        source: "UsagiProblemList"
+        target: "/root/cfProblemList"
+        strip_components: 0
     
     - name: Restart Service
       uses: appleboy/ssh-action@v1.0.3
@@ -44,7 +45,7 @@ jobs:
           if [ -f ./manage.sh ]; then
             ./manage.sh restart
           else
-            pkill -f UsagiProblemList || true  # 修改这里：用实际进程名
+            pkill -f UsagiProblemList || true
             nohup ./UsagiProblemList > /dev/null 2>&1 &
           fi
           echo 'Deployment completed!'

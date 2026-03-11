@@ -1,0 +1,50 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.21'
+    
+    - name: Build
+      run: |
+        go mod download
+        go build -o UsagiProblemList .
+    
+    - name: Deploy to Server
+      uses: easingthemes/ssh-deploy@main
+      with:
+        SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        REMOTE_HOST: ${{ secrets.SERVER_HOST }}
+        REMOTE_USER: ${{ secrets.SERVER_USER }}
+        SOURCE: UsagiProblemList
+        TARGET: /root/cfProblemList
+    
+    - name: Restart Service
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.SERVER_HOST }}
+        username: ${{ secrets.SERVER_USER }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        script: |
+          cd /root/cfProblemList
+          chmod +x UsagiProblemList
+          if [ -f ./manage.sh ]; then
+            ./manage.sh restart
+          else
+            pkill -f UsagiProblemList || true  # 修改这里：用实际进程名
+            nohup ./UsagiProblemList > /dev/null 2>&1 &
+          fi
+          echo 'Deployment completed!'

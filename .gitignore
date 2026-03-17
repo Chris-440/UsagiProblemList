@@ -27,6 +27,7 @@ go.work
 
 # Compiled binary
 cfProblemList
+server
 
 # Logs
 logs/

@@ -41,12 +41,19 @@ type ProblemSet struct {
 	Sections    []Section `json:"sections"`
 }
 
+// SectionSummary 章节简要信息（用于列表展示）
+type SectionSummary struct {
+	Title       string `json:"title"`
+	Description string `json:"description,omitempty"` // 章节简介，从第一个 paragraph 提取
+}
+
 // ProblemSetSummary 表示题单简要信息（用于列表页）
 type ProblemSetSummary struct {
-	ID          string `json:"id"`
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	Category    string `json:"category"`
+	ID          string           `json:"id"`
+	Title       string           `json:"title"`
+	Description string           `json:"description"`
+	Category    string           `json:"category"`
+	Sections    []SectionSummary `json:"sections,omitempty"` // 知识点章节列表
 }
 
 // Response 表示统一响应格式

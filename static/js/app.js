@@ -603,36 +603,57 @@ function renderUserStatsSection(stats) {
     `;
 }
 
-// 渲染题单卡片
+// 渲染题单卡片 - 按题单分组，每个题单有封面卡片 + 知识点卡片
 function renderProblemSetCards(problemSets, progressData = {}) {
-    const filtered = currentCategory === 'all' 
-        ? problemSets 
+    // 按分类筛选题单
+    const filteredSets = currentCategory === 'all'
+        ? problemSets
         : problemSets.filter(ps => ps.category === currentCategory);
 
-    if (filtered.length === 0) {
+    if (filteredSets.length === 0) {
         return '<p style="color: var(--text-secondary); text-align: center; grid-column: 1/-1;">暂无题单</p>';
     }
 
-    return filtered.map(ps => {
-        const progress = progressData[ps.id];
-        const progressHtml = progress ? `
-            <div class="card-progress">
-                <div class="progress-bar">
-                    <div class="progress-fill" style="width: ${progress.percentage}%"></div>
-                </div>
-                <span class="progress-text">${progress.completed_problems}/${progress.total_problems}</span>
-            </div>
-        ` : '';
-        
-        return `
-            <div class="problemset-card" onclick="navigateTo('/problemset/${ps.id}')">
+    // 按题单分组渲染
+    let html = '';
+    filteredSets.forEach(ps => {
+        // 题单分组容器
+        html += `<div class="problemset-group">`;
+
+        // 题单封面卡片（使用 index.json 的可爱标题/描述）
+        html += `
+            <div class="problemset-cover-card" onclick="navigateTo('/problemset/${ps.id}')">
                 <span class="card-category">${ps.category}</span>
                 <h3 class="card-title">${ps.title}</h3>
                 <p class="card-description">${ps.description}</p>
-                ${progressHtml}
+                ${ps.sections && ps.sections.length > 0 ? `
+                    <div class="card-sections-count">
+                        <i class="fas fa-layer-group"></i>
+                        ${ps.sections.length} 个知识点
+                    </div>
+                ` : ''}
             </div>
         `;
-    }).join('');
+
+        // 知识点卡片网格
+        if (ps.sections && ps.sections.length > 0) {
+            html += `<div class="section-grid">`;
+            ps.sections.forEach((section, index) => {
+                html += `
+                    <div class="problemset-section-card" onclick="navigateTo('/problemset/${ps.id}#section-${index}')">
+                        <span class="section-badge">${ps.category}</span>
+                        <h4 class="section-title">${section.title}</h4>
+                        <p class="section-desc">${section.description || ''}</p>
+                    </div>
+                `;
+            });
+            html += `</div>`;
+        }
+
+        html += `</div>`;
+    });
+
+    return html;
 }
 
 // 按分类筛选（仅更新卡片，不重新渲染整个页面）
@@ -815,6 +836,22 @@ async function renderProblemSetDetail(id) {
                 </div>
             </div>
         `;
+
+        // 如果 URL 中有 hash，滚动到对应 section
+        if (window.location.hash) {
+            setTimeout(() => {
+                const targetId = window.location.hash.substring(1);
+                const targetElement = document.getElementById(targetId);
+                if (targetElement) {
+                    const offset = 100;
+                    const elementPosition = targetElement.getBoundingClientRect().top + window.pageYOffset;
+                    window.scrollTo({
+                        top: elementPosition - offset,
+                        behavior: 'smooth'
+                    });
+                }
+            }, 100);
+        }
     } catch (error) {
         content.innerHTML = `
             <div class="error">

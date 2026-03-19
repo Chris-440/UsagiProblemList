@@ -2842,33 +2842,33 @@ body.bg-disabled {
 
 /* 🐰✨ 侧边栏目录样式 ✨🐰 */
 .problemset-detail-wrapper {
-    display: flex;
+    display: grid;
+    grid-template-columns: 260px 1fr;
     gap: 2rem;
     max-width: 1400px;
     margin: 0 auto;
-    position: relative;
 }
 
 .sidebar-toc {
     position: sticky;
-    top: 80px;
-    width: 260px;
-    min-width: 260px;
+    top: 100px;
     height: fit-content;
-    max-height: calc(100vh - 100px);
+    max-height: calc(100vh - 120px);
     background: linear-gradient(135deg, rgba(255,255,255,0.98), rgba(255,250,252,0.98));
     border-radius: 20px;
     border: 3px solid rgba(255, 158, 172, 0.35);
     box-shadow: 0 8px 30px rgba(255, 158, 172, 0.15);
     overflow: hidden;
     transition: all 0.3s ease;
-    flex-shrink: 0;
-    align-self: flex-start;
+    z-index: 50;
 }
 
 .sidebar-toc.collapsed {
-    width: 50px;
-    min-width: 50px;
+    /* Grid 布局下折叠由 wrapper 控制 */
+}
+
+.problemset-detail-wrapper.toc-collapsed {
+    grid-template-columns: 50px 1fr;
 }
 
 .sidebar-toc.collapsed .sidebar-toc-header span,
@@ -3792,14 +3792,12 @@ body.bg-disabled {
 
 /* 中等屏幕适配 */
 @media (max-width: 1200px) and (min-width: 769px) {
-    .sidebar-toc {
-        width: 220px;
-        min-width: 220px;
+    .problemset-detail-wrapper {
+        grid-template-columns: 220px 1fr;
     }
 
-    .sidebar-toc.collapsed {
-        width: 45px;
-        min-width: 45px;
+    .problemset-detail-wrapper.toc-collapsed {
+        grid-template-columns: 45px 1fr;
     }
 
     .sidebar-toc-item {

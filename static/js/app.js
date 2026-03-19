@@ -823,12 +823,12 @@ function initSidebarToc() {
     // 从 localStorage 读取折叠状态
     const isCollapsed = localStorage.getItem('sidebarTocCollapsed') === 'true';
     const sidebar = document.getElementById('sidebarToc');
-    const mainContent = document.getElementById('problemsetMain');
+    const wrapper = document.querySelector('.problemset-detail-wrapper');
 
     if (sidebar) {
         if (isCollapsed) {
             sidebar.classList.add('collapsed');
-            if (mainContent) mainContent.classList.add('toc-collapsed');
+            if (wrapper) wrapper.classList.add('toc-collapsed');
         }
 
         // 设置滚动监听，高亮当前章节
@@ -839,13 +839,13 @@ function initSidebarToc() {
 // 切换侧边栏目录展开/折叠
 function toggleSidebarToc() {
     const sidebar = document.getElementById('sidebarToc');
-    const mainContent = document.getElementById('problemsetMain');
+    const wrapper = document.querySelector('.problemset-detail-wrapper');
     const icon = document.querySelector('.sidebar-toc-toggle i');
 
     if (sidebar) {
         const isCollapsed = sidebar.classList.toggle('collapsed');
-        if (mainContent) {
-            mainContent.classList.toggle('toc-collapsed', isCollapsed);
+        if (wrapper) {
+            wrapper.classList.toggle('toc-collapsed', isCollapsed);
         }
         if (icon) {
             icon.className = isCollapsed ? 'fas fa-chevron-left' : 'fas fa-chevron-right';

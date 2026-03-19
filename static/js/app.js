@@ -869,23 +869,48 @@ function setupScrollSpy() {
 function highlightCurrentSection(sections, tocItems) {
     const scrollPos = window.scrollY + 150; // 偏移量
 
+    // 分别收集 subsection 和 section，优先匹配 subsection（嵌套更深）
+    const subsections = document.querySelectorAll('.subsection[id]');
+    const topSections = document.querySelectorAll('.section[id]');
+
     let currentSection = null;
 
-    sections.forEach(section => {
-        const top = section.offsetTop;
-        const height = section.offsetHeight;
-
+    // 优先检查 subsection（更小的章节单位）
+    subsections.forEach(sub => {
+        const top = sub.offsetTop;
+        const height = sub.offsetHeight;
         if (scrollPos >= top && scrollPos < top + height) {
-            currentSection = section.id;
+            currentSection = sub.id;
         }
     });
 
+    // 如果没有匹配到 subsection，再检查顶级 section
+    if (!currentSection) {
+        topSections.forEach(section => {
+            const top = section.offsetTop;
+            const height = section.offsetHeight;
+            if (scrollPos >= top && scrollPos < top + height) {
+                currentSection = section.id;
+            }
+        });
+    }
+
     // 如果没有找到当前章节，查找最近的上方章节
     if (!currentSection) {
-        for (let i = sections.length - 1; i >= 0; i--) {
-            if (sections[i].offsetTop <= scrollPos) {
-                currentSection = sections[i].id;
+        // 优先找最近的 subsection
+        for (let i = subsections.length - 1; i >= 0; i--) {
+            if (subsections[i].offsetTop <= scrollPos) {
+                currentSection = subsections[i].id;
                 break;
+            }
+        }
+        // 如果没找到，再找最近的 section
+        if (!currentSection) {
+            for (let i = topSections.length - 1; i >= 0; i--) {
+                if (topSections[i].offsetTop <= scrollPos) {
+                    currentSection = topSections[i].id;
+                    break;
+                }
             }
         }
     }

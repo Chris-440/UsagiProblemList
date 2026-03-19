@@ -716,10 +716,15 @@ function generateSectionId(sectionIndex, subsectionNumber) {
     return `section-${sectionIndex}`;
 }
 
+// 生成子章节锚点 ID（使用索引确保唯一）
+function generateSubsectionId(sectionIndex, itemIndex) {
+    return `section-${sectionIndex}-${itemIndex}`;
+}
+
 // 生成目录结构
 function generateTOC(sections) {
     const tocItems = [];
-    
+
     sections.forEach((section, sectionIndex) => {
         // 添加顶级章节
         tocItems.push({
@@ -728,22 +733,26 @@ function generateTOC(sections) {
             depth: 0,
             isSection: true
         });
-        
+
         // 遍历子章节
-        section.content.forEach((item, itemIndex) => {
+        let subIndex = 0;
+        section.content.forEach((item) => {
             if (item.type !== 'paragraph' && item.title) {
                 const number = extractSectionNumber(item.title);
                 const depth = getSectionDepth(number);
+                // 使用索引生成 ID，确保唯一
+                const id = number ? generateSectionId(sectionIndex, number) : generateSubsectionId(sectionIndex, subIndex);
                 tocItems.push({
                     title: item.title,
-                    id: generateSectionId(sectionIndex, number),
+                    id: id,
                     depth: depth,
                     isSection: false
                 });
+                subIndex++;
             }
         });
     });
-    
+
     return tocItems;
 }
 
@@ -1034,28 +1043,37 @@ async function renderProblemSetDetail(id) {
 // 渲染章节
 function renderSection(section, problemSetId, completedIds, sectionIndex) {
     const sectionId = generateSectionId(sectionIndex, null);
+    let subIndex = 0;
     return `
         <div class="section" id="${sectionId}">
             <h2 class="section-title">${section.title}</h2>
             <div class="section-content">
-                ${section.content.map((item, itemIndex) => renderContentItem(item, problemSetId, completedIds, sectionIndex)).join('')}
+                ${section.content.map((item) => {
+                    const result = renderContentItem(item, problemSetId, completedIds, sectionIndex, subIndex);
+                    if (item.type !== 'paragraph' && item.title) {
+                        subIndex++;
+                    }
+                    return result;
+                }).join('')}
             </div>
         </div>
     `;
 }
 
 // 渲染内容项
-function renderContentItem(item, problemSetId, completedIds, sectionIndex) {
+function renderContentItem(item, problemSetId, completedIds, sectionIndex, subIndex) {
     if (item.type === 'paragraph') {
         return `<div class="paragraph">${item.text}</div>`;
     }
 
     // 子章节对象 - 添加锚点 ID
     const subsectionNumber = item.title ? extractSectionNumber(item.title) : null;
-    const subsectionId = subsectionNumber ? generateSectionId(sectionIndex, subsectionNumber) : '';
+    const subsectionId = subsectionNumber
+        ? generateSectionId(sectionIndex, subsectionNumber)
+        : generateSubsectionId(sectionIndex, subIndex);
 
     return `
-        <div class="subsection" ${subsectionId ? `id="${subsectionId}"` : ''}>
+        <div class="subsection" id="${subsectionId}">
             ${item.title ? `<h3 class="subsection-title">${item.title}</h3>` : ''}
             ${item.idea ? `
                 <div class="subsection-idea">
